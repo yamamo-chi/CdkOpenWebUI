@@ -1,0 +1,43 @@
+services:
+  # 1. バックエンド: Llama.cpp Server
+  llama-server:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: llama-server
+    restart: always
+    environment:
+      - LLAMA_ARG_HF_REPO=Qwen/Qwen2.5-Coder-3B-Instruct-GGUF
+      - LLAMA_ARG_HOST=0.0.0.0
+      - LLAMA_ARG_PORT=8080
+
+  # 2. フロントエンド: OpenWebUI
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: always
+    environment:
+      # Llama-serverへの接続設定 (Docker内通信)
+      - OPENAI_API_BASE_URL=http://llama-server:8080/v1
+      - OPENAI_API_KEY=dummy  # ローカルLLMなのでダミー
+      - WEBUI_AUTH=True
+      - DEFAULT_USER_ROLE=user
+      - ENABLE_SIGNUP_PASSWORD_CONFIRMATION=True
+    volumes:
+      - openwebui:/app/backend/data
+    depends_on:
+      - llama-server
+
+  # 3. リバースプロキシ: Nginx
+  nginx:
+    image: nginx:latest
+    container_name: nginx-proxy
+    restart: always
+    ports:
+      - "443:443"  # HTTPSのみ開放
+      - "80:80"    # HTTP (HTTPSへのリダイレクト用)
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - open-webui
+volumes:
+  openwebui:
