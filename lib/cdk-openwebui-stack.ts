@@ -138,5 +138,12 @@ export class CdkOpenwebuiStack extends cdk.Stack {
         input: JSON.stringify({ InstanceIds: [instance.instanceId] }),
       },
     });
+
+    
+    // --- IPアドレス表示 ---
+
+    new cdk.CfnOutput(this, 'IpOutput', {
+      value: `サーバーIPアドレス: ${instance.instancePublicIp}`,
+    });
   }
 }

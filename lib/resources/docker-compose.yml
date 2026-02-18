@@ -32,8 +32,7 @@ services:
     container_name: nginx-proxy
     restart: always
     ports:
-      - "443:443"  # HTTPSのみ開放
-      - "80:80"    # HTTP (HTTPSへのリダイレクト用)
+      - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
