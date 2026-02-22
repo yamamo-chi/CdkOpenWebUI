@@ -132,10 +132,6 @@ export class CdkAppStack extends cdk.Stack {
       value: `InstanceId: ${instance.instanceId}`,
     });
 
-    new cdk.CfnOutput(this, 'IpOutput', {
-      value: `ServerIpAddress: ${instance.instancePublicIp}`,
-    });
-
     new cdk.CfnOutput(this, 'UrlOutput', {
       value: `ServerURL: https://${instance.instancePublicIp}`,
     });
