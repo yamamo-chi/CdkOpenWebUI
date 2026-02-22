@@ -1,14 +1,13 @@
-# Welcome to your CDK TypeScript project
+**通常のデプロイ手順**
+1. デプロイコマンド実行: `cdk deploy OpenwebuiAppStack`
+2. デプロイ後にコンソールに表示された `ServerURL` をブラウザで開く
 
-This is a blank project for CDK development with TypeScript.
+**OpenWebUIの初期設定完了後に公開する場合**
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
-
-## Useful commands
-
-* `npm run build`   compile typescript to js
-* `npm run watch`   watch for changes and compile
-* `npm run test`    perform the jest unit tests
-* `npx cdk deploy`  deploy this stack to your default AWS account/region
-* `npx cdk diff`    compare deployed stack with current state
-* `npx cdk synth`   emits the synthesized CloudFormation template
+1. [cdk-network-stack.ts](lib\cdk-network-stack.ts)内の `ec2Sg` へのHTTPS許可をコメントアウト
+2. デプロイコマンド実行: `cdk deploy OpenwebuiAppStack`
+3. デプロイ後にコンソールに表示された `InstanceId` を指定して[ssm_to_server.bat](scripts\ssm_to_server.bat)を実行
+4. ブラウザで証明書エラーの警告が出るが無視して続行し、初期設定を行う
+5. 初期設定が全て完了したら、上記 1. でコメントアウトしたHTTPS許可をコメントアウト解除
+6. 再度デプロイコマンド実行: `cdk deploy OpenwebuiAppStack`
+7. デプロイ後にコンソールに表示された `ServerURL` をブラウザで開き、正常に初期設定が完了していることを確認する
