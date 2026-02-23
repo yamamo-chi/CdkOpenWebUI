@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as s3_assets from 'aws-cdk-lib/aws-s3-assets';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as scheduler from 'aws-cdk-lib/aws-scheduler';
 import * as path from 'path'
 
@@ -23,25 +24,32 @@ export class CdkAppStack extends cdk.Stack {
     const MACHINE_IMAGE = ec2.MachineImage.latestAmazonLinux2023({
       //cpuType: ec2.AmazonLinuxCpuType.ARM_64
     });
+    
+    // EC2インスタンス用のIAMロール作成
+    const ec2Role = new iam.Role(this, 'Ec2Role', {
+      assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
+    });
+
+    // EC2にDatadogApiKey取得権限付与
+    const ddApiKeyParam = ssm.StringParameter.fromSecureStringParameterAttributes(this, 'DdApiKeyParam', {
+      parameterName: this.node.tryGetContext("ddApiKeyParamName"),
+    });
+    ddApiKeyParam.grantRead(ec2Role);
 
     // 配備リソースをS3経由でEC2に取得させる
     const resourcesAsset = new s3_assets.Asset(this, 'ResourcesAsset', {
       path: path.join(__dirname, 'resources'),
     });
 
-    // EC2インスタンス用のIAMロール作成
-    const role = new iam.Role(this, 'Ec2Role', {
-      assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
-    });
-
     // S3アセットへの読み取り権限をEC2に付与
-    resourcesAsset.grantRead(role);
+    resourcesAsset.grantRead(ec2Role);
 
     // EC2初期設定
     const userData = ec2.UserData.forLinux({
       shebang: "#!/bin/bash"
     });
 
+    // S3にアップロードした配備リソースを取得
     const resourcesZip = userData.addS3DownloadCommand({
       bucket: resourcesAsset.bucket,
       bucketKey: resourcesAsset.s3ObjectKey,
@@ -50,8 +58,10 @@ export class CdkAppStack extends cdk.Stack {
       `unzip ${resourcesZip} -d /home/ec2-user/openwebui/`,
       `rm ${resourcesZip}`,
     );
+    // サーバー初期化スクリプト実行
     userData.addExecuteFileCommand({
       filePath: '/home/ec2-user/openwebui/setup.sh',
+      arguments: this.node.tryGetContext("ddApiKeyParamName"),
     });
 
     // EC2インスタンス作成
@@ -64,7 +74,7 @@ export class CdkAppStack extends cdk.Stack {
         subnetType: ec2.SubnetType.PUBLIC,
       },
       securityGroup: props.ec2Sg,
-      role: role,
+      role: ec2Role,
       userData: userData,
       ssmSessionPermissions: true,
       blockDevices: [

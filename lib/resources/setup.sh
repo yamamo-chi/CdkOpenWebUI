@@ -44,6 +44,7 @@ $ACME_DIR/acme.sh --issue \
 
 # Docker Compose 起動
 cd $SCRIPT_DIR
+export DD_API_KEY=$(aws ssm get-parameter --name "$1" --with-decryption --query "Parameter.Value" --output text)
 docker compose up -d
 
 # NginxへIPアドレス証明書のインストールと自動更新設定

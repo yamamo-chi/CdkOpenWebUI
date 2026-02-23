@@ -1,5 +1,5 @@
 services:
-  # 1. バックエンド: Llama.cpp Server
+  # LLMサーバー: Llama.cpp Server
   llama-server:
     image: ghcr.io/ggml-org/llama.cpp:server
     container_name: llama-server
@@ -8,8 +8,10 @@ services:
       - LLAMA_ARG_HF_REPO=Qwen/Qwen2.5-Coder-3B-Instruct-GGUF
       - LLAMA_ARG_HOST=0.0.0.0
       - LLAMA_ARG_PORT=8080
+    networks:
+      - backend-net
 
-  # 2. フロントエンド: OpenWebUI
+  # アプリサーバー: OpenWebUI
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: open-webui
@@ -25,8 +27,18 @@ services:
       - openwebui:/app/backend/data
     depends_on:
       - llama-server
+      - fluent-bit
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: "localhost:24224"
+        fluentd-async-connect: "true"
+    networks:
+      - frontend-net
+      - backend-net
+      - logging-net
 
-  # 3. リバースプロキシ: Nginx
+  # リバースプロキシ: Nginx
   nginx:
     image: nginx:latest
     container_name: nginx-proxy
@@ -38,5 +50,30 @@ services:
       - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
       - open-webui
+    networks:
+      - frontend-net
+  
+  # ログ転送: Fluentbit
+  fluent-bit:
+    image: fluent/fluent-bit:latest
+    container_name: fluent-bit
+    restart: always
+    ports:
+      - "24224:24224"
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+    volumes:
+      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+    networks:
+      - logging-net
+
 volumes:
   openwebui:
+
+networks:
+  frontend-net:
+    driver: bridge
+  backend-net:
+    driver: bridge
+  logging-net:
+    driver: bridge

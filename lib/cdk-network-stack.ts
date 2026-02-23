@@ -32,7 +32,7 @@ export class CdkNetworkStack extends cdk.Stack {
     })
     this.ec2Sg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.HTTP);
 
-    // ↓↓↓ 管理者設定後に公開する場合は一度コメントアウト ↓↓↓
+    // ↓↓↓ 初期設定後に公開する場合は一度コメントアウト ↓↓↓
     // マイIPのHTTPS許可追加
     const myIp = execSync('curl -s https://checkip.amazonaws.com').toString().trim();
     const myIpCidr = `${myIp}/32`;
@@ -40,7 +40,7 @@ export class CdkNetworkStack extends cdk.Stack {
       ec2.Peer.ipv4(myIpCidr),
       ec2.Port.HTTPS,
     );
-    // ↑↑↑ 管理者設定後に公開する場合はコメントアウト ↑↑↑
+    // ↑↑↑ 初期設定後に公開する場合はコメントアウト ↑↑↑
 
     // EC2用ElasticIPアドレス作成
     this.eip = new ec2.CfnEIP(this, 'EC2EIP', {
