@@ -18,6 +18,7 @@ export class CdkAppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
+    // EC2の性能
     const INSTANCE_TYPE = ec2.InstanceType.of(
       ec2.InstanceClass.C6A, 
       ec2.InstanceSize.XLARGE);
@@ -88,8 +89,8 @@ export class CdkAppStack extends cdk.Stack {
 
     // EIPとEC2の紐付け
     new ec2.CfnEIPAssociation(this, 'EIPAssociation', {
-      eip: props.eip.ref,
       instanceId: instance.instanceId,
+      allocationId: props.eip.attrAllocationId,
     });
 
     // --- EC2自動起動/停止設定 ---

@@ -27,16 +27,11 @@ services:
       - openwebui:/app/backend/data
     depends_on:
       - llama-server
-      - fluent-bit
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: "localhost:24224"
-        fluentd-async-connect: "true"
+    labels:
+      com.datadoghq.ad.logs: '[{"source": "openwebui", "service": "app"}]'
     networks:
       - frontend-net
       - backend-net
-      - logging-net
 
   # リバースプロキシ: Nginx
   nginx:
@@ -52,20 +47,6 @@ services:
       - open-webui
     networks:
       - frontend-net
-  
-  # ログ転送: Fluentbit
-  fluent-bit:
-    image: fluent/fluent-bit:latest
-    container_name: fluent-bit
-    restart: always
-    ports:
-      - "24224:24224"
-    environment:
-      - DD_API_KEY=${DD_API_KEY}
-    volumes:
-      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
-    networks:
-      - logging-net
 
 volumes:
   openwebui:
@@ -74,6 +55,4 @@ networks:
   frontend-net:
     driver: bridge
   backend-net:
-    driver: bridge
-  logging-net:
     driver: bridge

@@ -42,9 +42,31 @@ $ACME_DIR/acme.sh --issue \
   --cert-profile shortlived \
   --days 3
 
+# --- Datadog設定 start ---
+
+# Datadog Agentのインストール
+DD_API_KEY=$(aws ssm get-parameter --name "$1" --with-decryption --query "Parameter.Value" --output text) \
+DD_SITE="ap1.datadoghq.com" \
+DD_INSTALL_ONLY=true \
+bash -c "$(curl -L https://install.datadoghq.com/scripts/install_script_agent7.sh)"
+
+# コンテナの中身もDatadogで監視
+usermod -aG docker dd-agent
+# ログ収集の有効化
+echo "logs_enabled: true" | sudo tee -a /etc/datadog-agent/datadog.yaml
+# 全てのコンテナログ収集を無効化
+echo "container_collect_all: false" | sudo tee -a /etc/datadog-agent/datadog.yaml
+# AmazonLinux2023でEC2メタデータを取得できるようにする
+echo "ec2_prefer_imdsv2: true" | sudo tee -a /etc/datadog-agent/datadog.yaml
+
+# Datadog Agent起動
+systemctl enable datadog-agent
+systemctl start datadog-agent
+
+# --- Datadog設定 end ---
+
 # Docker Compose 起動
 cd $SCRIPT_DIR
-export DD_API_KEY=$(aws ssm get-parameter --name "$1" --with-decryption --query "Parameter.Value" --output text)
 docker compose up -d
 
 # NginxへIPアドレス証明書のインストールと自動更新設定

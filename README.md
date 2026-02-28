@@ -1,6 +1,6 @@
 ## プロジェクト初期設定
 1. Gitクローン後、 `npm install` でパッケージインストール
-2. DatadogAPIキーをSSMパラメータストアにSecureStringで格納
+2. DatadogAPIキーをSSMパラメータストアに `SecureString`（タイプ: 安全な文字列）で格納
 3. [cdk.json](cdk.json)の `ddApiKeyParamName` に格納したパラメータ名を設定
 
 ## 通常のデプロイ手順
