@@ -58,6 +58,14 @@ echo "logs_enabled: true" | sudo tee -a /etc/datadog-agent/datadog.yaml
 echo "container_collect_all: false" | sudo tee -a /etc/datadog-agent/datadog.yaml
 # AmazonLinux2023でEC2メタデータを取得できるようにする
 echo "ec2_prefer_imdsv2: true" | sudo tee -a /etc/datadog-agent/datadog.yaml
+# プロセス情報収集
+cat << EOF | sudo tee -a /etc/datadog-agent/datadog.yaml
+process_config:
+  process_collection:
+    enabled: true
+    
+  strip_proc_arguments: true
+EOF
 
 # Datadog Agent起動
 systemctl enable datadog-agent
