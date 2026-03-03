@@ -66,6 +66,13 @@ process_config:
     
   strip_proc_arguments: true
 EOF
+# Nginx Integration用設定ファイル
+cat <<EOF > /etc/datadog-agent/conf.d/nginx.d/conf.yaml
+init_config:
+
+instances:
+  - nginx_status_url: http://localhost:81/nginx_status
+EOF
 
 # Datadog Agent起動
 systemctl enable datadog-agent

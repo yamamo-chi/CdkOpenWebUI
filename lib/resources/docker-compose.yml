@@ -40,6 +40,7 @@ services:
     restart: always
     ports:
       - "443:443"
+      - "81:81"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
