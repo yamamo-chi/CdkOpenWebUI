@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
 import { CdkNetworkStack } from '../lib/cdk-network-stack';
-import { CdkAppStack } from '../lib/cdk-app-stack';
+import { CdkWebAppStack } from '../lib/cdk-webapp-stack';
+import { CdkLlmServerStack } from '../lib/cdk-llmserver-stack';
 
 const app = new cdk.App();
 const networkStack = new CdkNetworkStack(app, 'OpenwebuiNetworkStack', {
@@ -11,14 +12,21 @@ const networkStack = new CdkNetworkStack(app, 'OpenwebuiNetworkStack', {
   }
 });
 
-const appStack = new CdkAppStack(app, 'OpenwebuiAppStack', {
+new CdkWebAppStack(app, 'OpenwebuiWebAppStack', {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: process.env.CDK_DEFAULT_REGION
   },
   eip: networkStack.eip,
   vpc: networkStack.vpc,
-  ec2Sg: networkStack.ec2Sg
+  ec2Sg: networkStack.webappEc2Sg
 });
 
-appStack.node.addDependency(networkStack);
+new CdkLlmServerStack(app, 'OpenwebuiLlmServerStack', {
+  env: {
+    account: process.env.CDK_DEFAULT_ACCOUNT,
+    region: process.env.CDK_DEFAULT_REGION
+  },
+  vpc: networkStack.vpc,
+  ec2Sg: networkStack.llamaserverEc2Sg
+});

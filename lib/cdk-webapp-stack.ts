@@ -14,17 +14,27 @@ export interface ApiStackProps extends cdk.StackProps {
   readonly ec2Sg: ec2.SecurityGroup;
 }
 
-export class CdkAppStack extends cdk.Stack {
+export class CdkWebAppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
+    // ==============================
+    // 定数 
+    // ==============================
+
     // EC2の性能
     const INSTANCE_TYPE = ec2.InstanceType.of(
-      ec2.InstanceClass.C6A, 
-      ec2.InstanceSize.XLARGE);
+      ec2.InstanceClass.C5A, 
+      ec2.InstanceSize.LARGE
+    );
     const MACHINE_IMAGE = ec2.MachineImage.latestAmazonLinux2023({
       //cpuType: ec2.AmazonLinuxCpuType.ARM_64
     });
+
+
+    // ==============================
+    // 処理開始
+    // ==============================
     
     // EC2インスタンス用のIAMロール作成
     const ec2Role = new iam.Role(this, 'Ec2Role', {
@@ -38,36 +48,60 @@ export class CdkAppStack extends cdk.Stack {
     ddApiKeyParam.grantRead(ec2Role);
 
     // 配備リソースをS3経由でEC2に取得させる
-    const resourcesAsset = new s3_assets.Asset(this, 'ResourcesAsset', {
-      path: path.join(__dirname, 'resources'),
+    const webappAsset = new s3_assets.Asset(this, 'WebappAsset', {
+      path: path.join(__dirname, 'resources/webapp'),
+    });
+    const commonAsset = new s3_assets.Asset(this, 'CommonAsset', {
+      path: path.join(__dirname, 'resources/common'),
     });
 
     // S3アセットへの読み取り権限をEC2に付与
-    resourcesAsset.grantRead(ec2Role);
+    webappAsset.grantRead(ec2Role);
+    commonAsset.grantRead(ec2Role);
 
-    // EC2初期設定
     const userData = ec2.UserData.forLinux({
       shebang: "#!/bin/bash"
     });
 
     // S3にアップロードした配備リソースを取得
-    const resourcesZip = userData.addS3DownloadCommand({
-      bucket: resourcesAsset.bucket,
-      bucketKey: resourcesAsset.s3ObjectKey,
+    const webappZip = userData.addS3DownloadCommand({
+      bucket: webappAsset.bucket,
+      bucketKey: webappAsset.s3ObjectKey,
+    });
+    const commonZip = userData.addS3DownloadCommand({
+      bucket: commonAsset.bucket,
+      bucketKey: commonAsset.s3ObjectKey,
     });
     userData.addCommands(
-      `unzip ${resourcesZip} -d /home/ec2-user/openwebui/`,
-      `rm ${resourcesZip}`,
+      `unzip ${webappZip} -d /home/ec2-user/openwebui/`,
+      `rm ${webappZip}`,
     );
-    // サーバー初期化スクリプト実行
+    userData.addCommands(
+      `unzip ${commonZip} -d /tmp/`,
+      `rm ${commonZip}`,
+    );
+
+    // Dockerインストール & サーバー起動
     userData.addExecuteFileCommand({
-      filePath: '/home/ec2-user/openwebui/setup.sh',
+      filePath: '/tmp/docker-installer.sh',
+    });
+    userData.addCommands(
+      'cd /home/ec2-user/openwebui',
+      'docker compose up -d',
+    );
+    // Datadogエージェントインストール
+    userData.addExecuteFileCommand({
+      filePath: '/tmp/ddagent-installer.sh',
       arguments: this.node.tryGetContext("ddApiKeyParamName"),
+    });
+    // IPアドレス証明書発行
+    userData.addExecuteFileCommand({
+      filePath: '/home/ec2-user/openwebui/issue-cert.sh',
     });
 
     // EC2インスタンス作成
     const instance = new ec2.Instance(this, 'Instance', {
-      instanceName: "OpenwebuiInstance",
+      instanceName: "Openwebui-WebappInstance",
       vpc: props.vpc,
       instanceType: INSTANCE_TYPE,
       machineImage: MACHINE_IMAGE,
@@ -84,7 +118,6 @@ export class CdkAppStack extends cdk.Stack {
           volume: ec2.BlockDeviceVolume.ebs(20)
         }
       ],
-      // keyName: "my-key"
     });
 
     // EIPとEC2の紐付け
@@ -107,7 +140,7 @@ export class CdkAppStack extends cdk.Stack {
 
     // スケジュールグループ
     const scheduleGroup = new scheduler.CfnScheduleGroup(this, 'ScheduleGroup', {
-      name: 'auto-start-stop-group',
+      name: 'auto-start-stop-group-webapp',
     });
 
     // 2. 起動スケジュール (平日 09:00 JST)

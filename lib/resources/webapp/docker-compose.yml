@@ -1,0 +1,57 @@
+services:
+  # LLMサーバー負荷分散用プロキシ: Nginx
+  llmserver-proxy:
+    image: nginx:alpine
+    container_name: llmserver-proxy
+    restart: always
+    volumes:
+      - ./nginx/llmserver-proxy/conf.d:/etc/nginx/conf.d:ro
+    networks:
+      - backend-net
+
+  # アプリサーバー: OpenWebUI
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: always
+    environment:
+      # Llama-serverへの接続設定 (Docker内通信)
+      - OPENAI_API_BASE_URL=http://llmserver-proxy:8080/v1
+      - OPENAI_API_KEY=dummy  # ローカルLLMなのでダミー
+      - WEBUI_AUTH=True
+      - DEFAULT_USER_ROLE=user
+      - ENABLE_SIGNUP_PASSWORD_CONFIRMATION=True
+    volumes:
+      - openwebui:/app/backend/data
+    depends_on:
+      - llmserver-proxy
+    labels:
+      com.datadoghq.ad.logs: '[{"source": "openwebui", "service": "app"}]'
+    networks:
+      - frontend-net
+      - backend-net
+
+  # SSL終端用プロキシ: Nginx
+  webapp-proxy:
+    image: nginx:alpine
+    container_name: webapp-proxy
+    restart: always
+    ports:
+      - "443:443"
+      - "81:81"
+    volumes:
+      - ./nginx/webapp-proxy/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/webapp-proxy/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - open-webui
+    networks:
+      - frontend-net
+
+volumes:
+  openwebui:
+
+networks:
+  frontend-net:
+    driver: bridge
+  backend-net:
+    driver: bridge
