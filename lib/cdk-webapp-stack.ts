@@ -89,11 +89,25 @@ export class CdkWebAppStack extends cdk.Stack {
       'cd /home/ec2-user/openwebui',
       'docker compose up -d',
     );
+
     // Datadogエージェントインストール
     userData.addExecuteFileCommand({
       filePath: '/tmp/ddagent-installer.sh',
       arguments: this.node.tryGetContext("ddApiKeyParamName"),
     });
+    userData.addCommands(
+      '# Nginx Integration用設定ファイル',
+      'cat <<EOF > /etc/datadog-agent/conf.d/nginx.d/conf.yaml',
+      'init_config:',
+
+      'instances:',
+      '  - nginx_status_url: http://localhost:81/nginx_status',
+      'EOF',
+
+      '# Datadog Agent再起動',
+      'systemctl restart datadog-agent',
+    );
+
     // IPアドレス証明書発行
     userData.addExecuteFileCommand({
       filePath: '/home/ec2-user/openwebui/issue-cert.sh',
