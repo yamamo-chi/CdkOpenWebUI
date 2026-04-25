@@ -62,6 +62,8 @@ export class CdkWebAppStack extends cdk.Stack {
     const userData = ec2.UserData.forLinux({
       shebang: "#!/bin/bash"
     });
+    userData.addCommands('dnf update -y');
+    userData.addCommands('timedatectl set-timezone Asia/Tokyo');
 
     // S3にアップロードした配備リソースを取得
     const webappZip = userData.addS3DownloadCommand({
@@ -142,6 +144,10 @@ export class CdkWebAppStack extends cdk.Stack {
 
     // --- EC2自動起動/停止設定 ---
 
+    const startHour = this.node.tryGetContext("serverStartHour");
+    const stopHour = this.node.tryGetContext("serverStopHour");
+    const scheduleDays = this.node.tryGetContext("serverScheduleDays");
+
     // 1. スケジューラーがEC2を操作するための実行ロール
     const schedulerRole = new iam.Role(this, 'SchedulerRole', {
       assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com'),
@@ -161,7 +167,7 @@ export class CdkWebAppStack extends cdk.Stack {
     new scheduler.CfnSchedule(this, 'StartSchedule', {
       groupName: scheduleGroup.name,
       flexibleTimeWindow: { mode: 'OFF' },
-      scheduleExpression: 'cron(0 9 ? * MON-FRI *)',
+      scheduleExpression: `cron(0 ${startHour} ? * ${scheduleDays} *)`,
       scheduleExpressionTimezone: 'Asia/Tokyo',
       target: {
         arn: `arn:aws:scheduler:::aws-sdk:ec2:startInstances`,
@@ -174,7 +180,7 @@ export class CdkWebAppStack extends cdk.Stack {
     new scheduler.CfnSchedule(this, 'StopSchedule', {
       groupName: scheduleGroup.name,
       flexibleTimeWindow: { mode: 'OFF' },
-      scheduleExpression: 'cron(0 19 ? * MON-FRI *)',
+      scheduleExpression: `cron(0 ${stopHour} ? * ${scheduleDays} *)`,
       scheduleExpressionTimezone: 'Asia/Tokyo',
       target: {
         arn: `arn:aws:scheduler:::aws-sdk:ec2:stopInstances`,

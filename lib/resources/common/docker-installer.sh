@@ -6,7 +6,6 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 # 権限修正
 chown -R ec2-user:ec2-user $SCRIPT_DIR
 
-dnf update -y
 dnf install -y docker
 
 # docker実行権限付与
